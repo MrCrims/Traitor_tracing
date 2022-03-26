@@ -6,7 +6,7 @@ Emal : mrcrimson@163.com
 '''
 import gmpy2
 from Crypto.Util import number
-import sympy,random
+import sympy,random,math
 import numpy as np
 #Q1：有限域上线性空间的基？
 gamma = [[]]# gamma matrix store codewords
@@ -77,5 +77,46 @@ def generate_gamma():
     print(np.linalg.matrix_rank(A))
     return
 
+# Minimal Access Black box tracing against arbitrary pirates
+
+def mini_access_black_box_tracing(Decoder,T_suspect,PBK,all_random,H):
+    # Decoder is a pirate decoder
+    # T_suspect is a set of PRK suspected for creating Decoder
+    # all_random is a set including all random bits used in key generation
+    def compute_P(lamda_,q,T_suspect,H):
+        def make_CT(PBK,T_suspect,H):
+            CT = []
+            for i in range(len(T_suspect)):
+                CT_i = []
+                S = random.randint(q)
+                for d in T_suspect[:i]:
+                    W = 1
+                    for j in range(2*k):
+                        W = W*pow(H[j],d[j],q) % q
+                    CT_i.append([S,W,H])
+                CT.append(CT_i)
+            return CT
+        CT = make_CT(PBK,T_suspect,H)
+        P = []
+        for i in range(k):
+            CW_i = CT[i]
+            count = 0
+            for j in range(1,lamda_):
+                C = CW_i[random.randint(len((CW_i)))]
+                if Decoder.decode(C):
+                    count += 1
+            p = count/lamda_
+            P.append(p)
+        return P
+    epsilon = 0.1
+    lamda_ = 64*k*math.log(k/epsilon)
+    P = compute_P(lamda_,q,T_suspect,H)
+    if P[k]<0.75:
+        print("No guilty!")
+        return False
+    for j in range(len(P)):
+        if math.fabs(P[j+1]-P[j])>1/(2*k):
+            print("No."+str(j)+"is guilty")
+            return j
 if __name__ == '__main__':
     generate_gamma()
